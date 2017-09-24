@@ -799,10 +799,8 @@ static const struct hid_device_id sensor_hub_devices[] = {
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
 			0x07bd), /* Microsoft Surface 3 */
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROCHIP,
-			0x0f01), /* MM7150 */
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
-			0x07C4), /* Microsoft Surface Pro 3 */
+			0x07C3), /* Microsoft Surface Pro 3 should be 0x07C4 */
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_STM_0,
 			USB_DEVICE_ID_STM_HID_SENSOR),
