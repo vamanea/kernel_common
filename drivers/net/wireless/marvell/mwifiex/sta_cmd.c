@@ -30,7 +30,7 @@ static bool drcs;
 module_param(drcs, bool, 0644);
 MODULE_PARM_DESC(drcs, "multi-channel operation:1, single-channel operation:0");
 
-static bool disable_auto_ds;
+static bool disable_auto_ds = 1;
 module_param(disable_auto_ds, bool, 0);
 MODULE_PARM_DESC(disable_auto_ds,
 		 "deepsleep enabled=0(default), deepsleep disabled=1");
@@ -2338,7 +2338,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 				       &priv->adapter->tx_buf_size, true);
 		if (ret)
 			return -1;
-
+#if 0
 		if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
 			/* Enable IEEE PS by default */
 			priv->adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_PSP;
@@ -2349,7 +2349,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 			if (ret)
 				return -1;
 		}
-
+#endif
 		if (drcs) {
 			adapter->drcs_enabled = true;
 			if (ISSUPP_DRCS_ENABLED(adapter->fw_cap_info))
@@ -2394,7 +2394,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 			       &priv->curr_pkt_filter, true);
 	if (ret)
 		return -1;
-
+#if 0
 	if (!disable_auto_ds && first_sta &&
 	    priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
 		/* Enable auto deep sleep */
@@ -2406,7 +2406,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 		if (ret)
 			return -1;
 	}
-
+#endif
 	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
 		/* Send cmd to FW to enable/disable 11D function */
 		state_11d = ENABLE_11D;

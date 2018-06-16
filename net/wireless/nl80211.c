@@ -10037,8 +10037,7 @@ static int nl80211_set_power_save(struct sk_buff *skb, struct genl_info *info)
 
 	state = (ps_state == NL80211_PS_ENABLED) ? true : false;
 
-	if (state == wdev->ps)
-		return 0;
+	return 0;
 
 	err = rdev_set_power_mgmt(rdev, dev, state, wdev->ps_timeout);
 	if (!err)
