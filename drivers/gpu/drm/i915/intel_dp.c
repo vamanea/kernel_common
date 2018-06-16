@@ -51,6 +51,8 @@
 #define INTEL_DP_RESOLUTION_STANDARD	(2 << INTEL_DP_RESOLUTION_SHIFT_MASK)
 #define INTEL_DP_RESOLUTION_FAILSAFE	(3 << INTEL_DP_RESOLUTION_SHIFT_MASK)
 
+static int backlight_enablements = 0;
+
 struct dp_link_dpll {
 	int clock;
 	struct dpll dpll;
@@ -2424,6 +2426,11 @@ void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 	DRM_DEBUG_KMS("\n");
 
 	intel_panel_enable_backlight(crtc_state, conn_state);
+	if (backlight_enablements) {
+		DRM_DEBUG_KMS("bail\n");
+		return;
+	}
+	backlight_enablements++;
 	_intel_edp_backlight_on(intel_dp);
 }
 
