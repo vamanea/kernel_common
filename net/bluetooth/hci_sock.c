@@ -937,8 +937,6 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 
 	switch (cmd) {
 	case HCISETRAW:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return -EOPNOTSUPP;
 
 	case HCIGETCONNINFO:
@@ -948,13 +946,9 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 		return hci_get_auth_info(hdev, (void __user *)arg);
 
 	case HCIBLOCKADDR:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return hci_sock_blacklist_add(hdev, (void __user *)arg);
 
 	case HCIUNBLOCKADDR:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return hci_sock_blacklist_del(hdev, (void __user *)arg);
 	}
 
@@ -986,8 +980,7 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 	if (hci_sock_gen_cookie(sk)) {
 		struct sk_buff *skb;
 
-		if (capable(CAP_NET_ADMIN))
-			hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
 		/* Send event to monitor */
 		skb = create_monitor_ctrl_open(sk);
@@ -1011,23 +1004,15 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 		return hci_get_conn_list(argp);
 
 	case HCIDEVUP:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return hci_dev_open(arg);
 
 	case HCIDEVDOWN:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return hci_dev_close(arg);
 
 	case HCIDEVRESET:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return hci_dev_reset(arg);
 
 	case HCIDEVRESTAT:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return hci_dev_reset_stat(arg);
 
 	case HCISETSCAN:
@@ -1038,8 +1023,6 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 	case HCISETLINKMODE:
 	case HCISETACLMTU:
 	case HCISETSCOMTU:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		return hci_dev_cmd(cmd, argp);
 
 	case HCIINQUIRY:
@@ -1117,8 +1100,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			}
 		}
 
-		if (capable(CAP_NET_ADMIN))
-			hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
 		hci_pi(sk)->hdev = hdev;
 
@@ -1139,11 +1121,6 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 
 		if (haddr.hci_dev == HCI_DEV_NONE) {
 			err = -EINVAL;
-			goto done;
-		}
-
-		if (!capable(CAP_NET_ADMIN)) {
-			err = -EPERM;
 			goto done;
 		}
 
@@ -1230,11 +1207,6 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
-		if (!capable(CAP_NET_RAW)) {
-			err = -EPERM;
-			goto done;
-		}
-
 		hci_pi(sk)->channel = haddr.hci_channel;
 
 		/* The monitor interface is restricted to CAP_NET_RAW
@@ -1259,11 +1231,6 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
-		if (!capable(CAP_NET_ADMIN)) {
-			err = -EPERM;
-			goto done;
-		}
-
 		hci_pi(sk)->channel = haddr.hci_channel;
 		break;
 
@@ -1283,8 +1250,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 * untrusted users the interface is restricted and
 		 * also only untrusted events are sent.
 		 */
-		if (capable(CAP_NET_ADMIN))
-			hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
 		hci_pi(sk)->channel = haddr.hci_channel;
 
@@ -1759,14 +1725,6 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		u16 ogf = hci_opcode_ogf(opcode);
 		u16 ocf = hci_opcode_ocf(opcode);
 
-		if (((ogf > HCI_SFLT_MAX_OGF) ||
-		     !hci_test_bit(ocf & HCI_FLT_OCF_BITS,
-				   &hci_sec_filter.ocf_mask[ogf])) &&
-		    !capable(CAP_NET_RAW)) {
-			err = -EPERM;
-			goto drop;
-		}
-
 		/* Since the opcode has already been extracted here, store
 		 * a copy of the value for later use by the drivers.
 		 */
@@ -1785,11 +1743,6 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			queue_work(hdev->workqueue, &hdev->cmd_work);
 		}
 	} else {
-		if (!capable(CAP_NET_RAW)) {
-			err = -EPERM;
-			goto drop;
-		}
-
 		if (hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
 		    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT) {
 			err = -EINVAL;
@@ -1869,12 +1822,6 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 		if (copy_from_user(&uf, optval, len)) {
 			err = -EFAULT;
 			break;
-		}
-
-		if (!capable(CAP_NET_RAW)) {
-			uf.type_mask &= hci_sec_filter.type_mask;
-			uf.event_mask[0] &= *((u32 *) hci_sec_filter.event_mask + 0);
-			uf.event_mask[1] &= *((u32 *) hci_sec_filter.event_mask + 1);
 		}
 
 		{
