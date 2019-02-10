@@ -31,6 +31,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -956,7 +957,7 @@ static int cmos_aie_poweroff(struct device *dev)
 
 	return retval;
 }
-
+#if 0
 static int cmos_suspend(struct device *dev)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
@@ -996,7 +997,45 @@ static int cmos_suspend(struct device *dev)
 
 	return 0;
 }
+#else
+static int cmos_suspend(struct device *dev)
+{
+	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
+	unsigned char	tmp;
 
+	/* only the alarm might be a wakeup event source */
+	spin_lock_irq(&rtc_lock);
+	cmos->suspend_ctrl = tmp = CMOS_READ(RTC_CONTROL);
+	if (1) {
+		unsigned char	mask;
+
+		if (1 /*device_may_wakeup(dev)*/)
+			mask = RTC_IRQMASK & ~RTC_AIE;
+		else
+			mask = RTC_IRQMASK;
+		tmp &= ~mask;
+		CMOS_WRITE(tmp, RTC_CONTROL);
+		hpet_mask_rtc_irq_bit(mask);
+
+		cmos_checkintr(cmos, tmp);
+	}
+	spin_unlock_irq(&rtc_lock);
+
+	if (1/*tmp & RTC_AIE*/) {
+		cmos->enabled_wake = 1;
+		cmos->wake_on(dev);
+	}
+
+	cmos_read_alarm(dev, &cmos->saved_wkalrm);
+
+	dev_dbg(dev, "suspend%s, ctrl %02x\n",
+			(tmp & RTC_AIE) ? ", alarm may wake" : "",
+			tmp);
+
+	return 0;
+}
+
+#endif
 /* We want RTC alarms to wake us from e.g. ACPI G2/S5 "soft off", even
  * after a detour through G3 "mechanical off", although the ACPI spec
  * says wakeup should only work from G1/S4 "hibernate".  To most users,
