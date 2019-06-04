@@ -127,8 +127,7 @@ static void deinit_capture_data_cb(struct capture_data_cb *cb)
 {
 	kfree(cb->buf);
 	kfree(cb);
-	cb->pos = 0;
-	cb->expected = 0;
+	cb = NULL;
 }
 
 static inline void __fill_isoc_descriptor(struct urb *urb, int len, int mtu)
