@@ -893,6 +893,7 @@ static int snd_usb_audio_dev_free(struct snd_device *device)
 	data->capture_stream = NULL;
 	data->capture_hwptr_done = 0;
 	spin_unlock_irqrestore(&data->rxlock, flags);
+	return 0;
 }
 
 static int btusb_snd_card_create(struct btusb_data *data)
@@ -985,11 +986,12 @@ static void btusb_sco_disconnect(struct usb_interface *intf)
 	if (!data)
 		return;
 
-	if (data->intf)
+	if (data->intf) {
 		usb_set_intfdata(data->intf, NULL);
-	usb_driver_release_interface(&btusb_sco_driver, data->intf);
-	snd_card_disconnect(data->card);
+		usb_driver_release_interface(&btusb_sco_driver, data->intf);
+	}
 
+	snd_card_disconnect(data->card);
 	snd_card_free_when_closed(data->card);
 	/* TODO: Freeing the resource causing kernel panic.Cleanup
 	part needs to be checked.
@@ -999,11 +1001,6 @@ static void btusb_sco_disconnect(struct usb_interface *intf)
 
 static int btusb_sco_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	struct btusb_data *data = usb_get_intfdata(intf);
-
-	if (!data)
-		return;
-
 	// TODO: Do we need to call snd_pcm_suspend_all
 	// snd_pcm_suspend_all(data->pcm);
 	return 0;
@@ -1011,11 +1008,6 @@ static int btusb_sco_suspend(struct usb_interface *intf, pm_message_t message)
 
 static int btusb_sco_resume(struct usb_interface *intf, pm_message_t message)
 {
-	struct btusb_data *data = usb_get_intfdata(intf);
-
-	if (!data)
-		return;
-
 	// TODO: Do we need to call snd_power_change_state
 	// snd_power_change_state(data->card, SNDRV_CTL_POWER_D0);
 	return 0;
