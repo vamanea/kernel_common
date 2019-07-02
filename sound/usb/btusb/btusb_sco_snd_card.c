@@ -15,6 +15,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
@@ -47,6 +48,7 @@
 #define MIN_PERIODS	                   4
 
 static struct usb_driver btusb_sco_driver;
+static DEFINE_MUTEX(config_mutex);
 
 struct capture_data_cb {
 	unsigned char *buf;
@@ -615,7 +617,10 @@ static int bt_pcm_prepare(struct snd_pcm_substream *substream)
 	dev = &(data->udev->dev);
 	// TODO: Does endpoint needs to be configured separately for Tx and Rx
 	// endpoints?
+	mutex_lock(&config_mutex);
 	err = configure_endpoints(substream);
+	mutex_unlock(&config_mutex);
+
 	if (err < 0) {
 		dev_err(dev, "failed to configure Endpoints err:%d\n", err);
 		return err;
