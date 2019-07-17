@@ -753,6 +753,7 @@ int mwifiex_drv_set_power(struct mwifiex_private *priv, u32 *ps_mode)
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u16 sub_cmd;
 
+	return 0;
 	if (*ps_mode)
 		adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_PSP;
 	else
