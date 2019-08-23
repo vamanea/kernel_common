@@ -92,10 +92,10 @@ static int alarmtimer_rtc_add_device(struct device *dev,
 	if (rtcdev)
 		return -EBUSY;
 
-	if (!rtc->ops->set_alarm)
+	if (!rtc->ops->set_alarm || rtc->ops->set_time)
 		return -1;
-	if (!device_may_wakeup(rtc->dev.parent))
-		return -1;
+	/*if (!device_may_wakeup(rtc->dev.parent))
+		return -1;*/
 
 	__ws = wakeup_source_register(dev, "alarmtimer");
 
