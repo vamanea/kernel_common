@@ -39,11 +39,10 @@ static void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 static void
 mwifiex_init_cmd_node(struct mwifiex_private *priv,
 		      struct cmd_ctrl_node *cmd_node,
-		      u32 cmd_no, void *data_buf, bool sync)
+		      u32 cmd_oid, void *data_buf, bool sync)
 {
 	cmd_node->priv = priv;
-	cmd_node->cmd_no = cmd_no;
-
+	cmd_node->cmd_oid = cmd_oid;
 	if (sync) {
 		cmd_node->wait_q_enabled = true;
 		cmd_node->cmd_wait_q_woken = false;
@@ -92,7 +91,7 @@ static void
 mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 		       struct cmd_ctrl_node *cmd_node)
 {
-	cmd_node->cmd_no = 0;
+	cmd_node->cmd_oid = 0;
 	cmd_node->cmd_flag = 0;
 	cmd_node->data_buf = NULL;
 	cmd_node->wait_q_enabled = false;
@@ -198,7 +197,6 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	}
 
 	cmd_code = le16_to_cpu(host_cmd->command);
-	cmd_node->cmd_no = cmd_code;
 	cmd_size = le16_to_cpu(host_cmd->size);
 
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_RESET &&
@@ -619,7 +617,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	}
 
 	/* Initialize the command node */
-	mwifiex_init_cmd_node(priv, cmd_node, cmd_no, data_buf, sync);
+	mwifiex_init_cmd_node(priv, cmd_node, cmd_oid, data_buf, sync);
 
 	if (!cmd_node->cmd_skb) {
 		mwifiex_dbg(adapter, ERROR,
@@ -813,6 +811,9 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	uint16_t cmdresp_no;
 	uint16_t cmdresp_result;
 
+	/* Now we got response from FW, cancel the command timer */
+	del_timer_sync(&adapter->cmd_timer);
+
 	if (!adapter->curr_cmd || !adapter->curr_cmd->resp_skb) {
 		resp = (struct host_cmd_ds_command *) adapter->upld_buf;
 		mwifiex_dbg(adapter, ERROR,
@@ -821,20 +822,9 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		return -1;
 	}
 
-	resp = (struct host_cmd_ds_command *)adapter->curr_cmd->resp_skb->data;
-	orig_cmdresp_no = le16_to_cpu(resp->command);
-	cmdresp_no = (orig_cmdresp_no & HostCmd_CMD_ID_MASK);
-
-	if (adapter->curr_cmd->cmd_no != cmdresp_no) {
-		mwifiex_dbg(adapter, ERROR,
-			    "cmdresp error: cmd=0x%x cmd_resp=0x%x\n",
-			    adapter->curr_cmd->cmd_no, cmdresp_no);
-		return -1;
-	}
-	/* Now we got response from FW, cancel the command timer */
-	del_timer_sync(&adapter->cmd_timer);
 	clear_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags);
 
+	resp = (struct host_cmd_ds_command *) adapter->curr_cmd->resp_skb->data;
 	if (adapter->curr_cmd->cmd_flag & CMD_F_HOSTCMD) {
 		/* Copy original response back to response buffer */
 		struct mwifiex_ds_misc_cmd *hostcmd;
@@ -848,6 +838,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 			memcpy(hostcmd->cmd, resp, size);
 		}
 	}
+	orig_cmdresp_no = le16_to_cpu(resp->command);
 
 	/* Get BSS number and corresponding priv */
 	priv = mwifiex_get_priv_by_id(adapter,
@@ -1004,6 +995,7 @@ mwifiex_cmd_timeout_func(struct timer_list *t)
 		if (cmd_node->wait_q_enabled) {
 			adapter->cmd_wait_q.status = -ETIMEDOUT;
 			mwifiex_cancel_pending_ioctl(adapter);
+			adapter->cmd_sent = false;
 		}
 	}
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING) {
@@ -1011,11 +1003,11 @@ mwifiex_cmd_timeout_func(struct timer_list *t)
 		return;
 	}
 
-	if (adapter->if_ops.device_dump)
-		adapter->if_ops.device_dump(adapter);
+	//if (adapter->if_ops.device_dump)
+	//	adapter->if_ops.device_dump(adapter);
 
-	if (adapter->if_ops.card_reset)
-		adapter->if_ops.card_reset(adapter);
+	//if (adapter->if_ops.card_reset)
+	//	adapter->if_ops.card_reset(adapter);
 }
 
 void
@@ -1578,6 +1570,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 						    adapter->key_api_minor_ver);
 					break;
 				case FW_API_VER_ID:
+				case FW_KEY_API_VER_ID:
 					adapter->fw_api_ver =
 							api_rev->major_ver;
 					mwifiex_dbg(adapter, INFO,

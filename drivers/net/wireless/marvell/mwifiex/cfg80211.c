@@ -437,7 +437,7 @@ mwifiex_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 		mwifiex_dbg(priv->adapter, INFO,
 			    "info: ignore timeout value for IEEE Power Save\n");
 
-	ps_mode = enabled;
+	ps_mode = 0;
 
 	return mwifiex_drv_set_power(priv, &ps_mode);
 }
@@ -4358,8 +4358,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
-			WIPHY_FLAG_PS_ON_BY_DEFAULT;
+			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	if (ISSUPP_TDLS_ENABLED(adapter->fw_cap_info))
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |

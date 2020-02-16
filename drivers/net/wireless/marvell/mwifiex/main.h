@@ -625,6 +625,9 @@ struct mwifiex_private {
 	struct list_head rx_reorder_tbl_ptr;
 	/* spin lock for rx_reorder_tbl_ptr queue */
 	spinlock_t rx_reorder_tbl_lock;
+	/* spin lock for Rx packets */
+	spinlock_t rx_pkt_lock;
+
 #define MWIFIEX_ASSOC_RSP_BUF_SIZE  500
 	u8 assoc_rsp_buf[MWIFIEX_ASSOC_RSP_BUF_SIZE];
 	u32 assoc_rsp_size;
@@ -748,7 +751,7 @@ struct mwifiex_bss_prio_tbl {
 struct cmd_ctrl_node {
 	struct list_head list;
 	struct mwifiex_private *priv;
-	u32 cmd_no;
+	u32 cmd_oid;
 	u32 cmd_flag;
 	struct sk_buff *cmd_skb;
 	struct sk_buff *resp_skb;
@@ -909,6 +912,7 @@ struct mwifiex_adapter {
 	spinlock_t main_proc_lock;
 	u32 mwifiex_processing;
 	u8 more_task_flag;
+	u8 more_rx_task_flag;
 	u16 tx_buf_size;
 	u16 curr_tx_buf_size;
 	/* sdio single port rx aggregation capability */
@@ -1017,7 +1021,6 @@ struct mwifiex_adapter {
 
 	/* For synchronizing FW initialization with device lifecycle. */
 	struct completion *fw_done;
-	bool is_up;
 
 	bool ext_scan;
 	u8 fw_api_ver;
@@ -1696,6 +1699,7 @@ void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter);
 void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_fw_dump_event(struct mwifiex_private *priv);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
+void mwifiex_queue_rx_work(struct mwifiex_adapter *adapter);
 int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
 			      int cmd_type,
 			      struct mwifiex_ds_wakeup_reason *wakeup_reason);

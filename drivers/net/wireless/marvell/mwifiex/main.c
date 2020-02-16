@@ -163,6 +163,7 @@ void mwifiex_queue_main_work(struct mwifiex_adapter *adapter)
 	spin_lock_irqsave(&adapter->main_proc_lock, flags);
 	if (adapter->mwifiex_processing) {
 		adapter->more_task_flag = true;
+		adapter->more_rx_task_flag = true;
 		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 	} else {
 		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
@@ -171,31 +172,38 @@ void mwifiex_queue_main_work(struct mwifiex_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(mwifiex_queue_main_work);
 
-static void mwifiex_queue_rx_work(struct mwifiex_adapter *adapter)
+void mwifiex_queue_rx_work(struct mwifiex_adapter *adapter)
 {
-	spin_lock_bh(&adapter->rx_proc_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 	if (adapter->rx_processing) {
-		spin_unlock_bh(&adapter->rx_proc_lock);
+		adapter->more_rx_task_flag = true;
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 	} else {
-		spin_unlock_bh(&adapter->rx_proc_lock);
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 		queue_work(adapter->rx_workqueue, &adapter->rx_work);
 	}
 }
+EXPORT_SYMBOL_GPL(mwifiex_queue_rx_work);
 
 static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 {
+	unsigned long flags;
 	struct sk_buff *skb;
 	struct mwifiex_rxinfo *rx_info;
 
-	spin_lock_bh(&adapter->rx_proc_lock);
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 	if (adapter->rx_processing || adapter->rx_locked) {
-		spin_unlock_bh(&adapter->rx_proc_lock);
+		adapter->more_rx_task_flag = true;
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 		goto exit_rx_proc;
 	} else {
 		adapter->rx_processing = true;
-		spin_unlock_bh(&adapter->rx_proc_lock);
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 	}
 
+rx_process_start:
 	/* Check for Rx data */
 	while ((skb = skb_dequeue(&adapter->rx_data_q))) {
 		atomic_dec(&adapter->rx_pending);
@@ -216,9 +224,14 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 			mwifiex_handle_rx_packet(adapter, skb);
 		}
 	}
-	spin_lock_bh(&adapter->rx_proc_lock);
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	if (adapter->more_rx_task_flag) {
+		adapter->more_rx_task_flag = false;
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		goto rx_process_start;
+	}
 	adapter->rx_processing = false;
-	spin_unlock_bh(&adapter->rx_proc_lock);
+	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 
 exit_rx_proc:
 	return 0;
@@ -280,10 +293,9 @@ process_start:
 				mwifiex_process_hs_config(adapter);
 			if (adapter->if_ops.process_int_status)
 				adapter->if_ops.process_int_status(adapter);
+			if (adapter->rx_work_enabled && adapter->data_received)
+				mwifiex_queue_rx_work(adapter);
 		}
-
-		if (adapter->rx_work_enabled && adapter->data_received)
-			mwifiex_queue_rx_work(adapter);
 
 		/* Need to wake up the card ? */
 		if ((adapter->ps_state == PS_STATE_SLEEP) &&
@@ -631,7 +643,6 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 
 	mwifiex_drv_get_driver_version(adapter, fmt, sizeof(fmt) - 1);
 	mwifiex_dbg(adapter, MSG, "driver_version = %s\n", fmt);
-	adapter->is_up = true;
 	goto done;
 
 err_add_intf:
@@ -957,10 +968,10 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 
 		mac_addr = old_mac_addr;
 
-		if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P) {
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
 			mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
-			mac_addr += priv->bss_num;
-		} else if (priv->adapter->priv[0] != priv) {
+
+		if (mwifiex_get_intf_num(priv->adapter, priv->bss_type) > 1) {
 			/* Set mac address based on bss_type/bss_num */
 			mac_addr ^= BIT_ULL(priv->bss_type + 8);
 			mac_addr += priv->bss_num;
@@ -1470,7 +1481,6 @@ int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 	mwifiex_deauthenticate(priv, NULL);
 
 	mwifiex_uninit_sw(adapter);
-	adapter->is_up = false;
 
 	if (adapter->if_ops.down_dev)
 		adapter->if_ops.down_dev(adapter);
@@ -1732,8 +1742,7 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 	if (!adapter)
 		return 0;
 
-	if (adapter->is_up)
-		mwifiex_uninit_sw(adapter);
+	mwifiex_uninit_sw(adapter);
 
 	if (adapter->irq_wakeup >= 0)
 		device_init_wakeup(adapter->dev, false);
