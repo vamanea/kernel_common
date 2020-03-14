@@ -1011,7 +1011,7 @@ static int btusb_sco_suspend(struct usb_interface *intf, pm_message_t message)
 	return 0;
 }
 
-static int btusb_sco_resume(struct usb_interface *intf, pm_message_t message)
+static int btusb_sco_resume(struct usb_interface *intf)
 {
 	// TODO: Do we need to call snd_power_change_state
 	// snd_power_change_state(data->card, SNDRV_CTL_POWER_D0);

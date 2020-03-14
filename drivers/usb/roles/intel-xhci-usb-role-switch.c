@@ -195,7 +195,7 @@ static int intel_xhci_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int intel_xhci_usb_suspend(struct platform_device *pdev)
+static int intel_xhci_usb_suspend(struct platform_device *pdev, pm_message_t message)
 {
         struct device *dev = &pdev->dev;
         intel_xhci_usb_set_role(dev, USB_ROLE_HOST);
