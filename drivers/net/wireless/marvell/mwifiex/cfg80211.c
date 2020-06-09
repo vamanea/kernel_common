@@ -376,20 +376,11 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 	struct mwifiex_power_cfg power_cfg;
 	int dbm = MBM_TO_DBM(mbm);
 
-	switch (type) {
-	case NL80211_TX_POWER_FIXED:
+	if (type == NL80211_TX_POWER_FIXED) {
 		power_cfg.is_power_auto = 0;
-		power_cfg.is_power_fixed = 1;
 		power_cfg.power_level = dbm;
-		break;
-	case NL80211_TX_POWER_LIMITED:
-		power_cfg.is_power_auto = 0;
-		power_cfg.is_power_fixed = 0;
-		power_cfg.power_level = dbm;
-		break;
-	case NL80211_TX_POWER_AUTOMATIC:
+	} else {
 		power_cfg.is_power_auto = 1;
-		break;
 	}
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
@@ -437,7 +428,7 @@ mwifiex_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 		mwifiex_dbg(priv->adapter, INFO,
 			    "info: ignore timeout value for IEEE Power Save\n");
 
-	ps_mode = enabled;
+	ps_mode = 0;
 
 	return mwifiex_drv_set_power(priv, &ps_mode);
 }
@@ -4333,8 +4324,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
-			WIPHY_FLAG_PS_ON_BY_DEFAULT;
+			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	if (ISSUPP_TDLS_ENABLED(adapter->fw_cap_info))
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
