@@ -498,12 +498,12 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 		goto out;
 
 	par = parent_cs(cur);
-
+#if 0
 	/* On legacy hiearchy, we must be a subset of our parent cpuset. */
 	ret = -EACCES;
 	if (!is_in_v2_mode() && !is_cpuset_subset(trial, par))
 		goto out;
-
+#endif
 	/*
 	 * If either I or some sibling (!= me) is exclusive, we can't
 	 * overlap

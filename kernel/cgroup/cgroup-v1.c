@@ -537,6 +537,7 @@ static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
 	 * Even if we're attaching all tasks in the thread group, we only
 	 * need to check permissions on one of them.
 	 */
+#if 0
 	cred = current_cred();
 	tcred = get_task_cred(task);
 	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
@@ -547,7 +548,7 @@ static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
 	put_cred(tcred);
 	if (ret)
 		goto out_finish;
-
+#endif
 	ret = cgroup_attach_task(cgrp, task, threadgroup);
 
 out_finish:
