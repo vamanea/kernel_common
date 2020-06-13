@@ -328,9 +328,6 @@ static const struct hid_device_id hid_battery_quirks[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SYMBOL,
 		USB_DEVICE_ID_SYMBOL_SCANNER_3),
 	  HID_BATTERY_QUIRK_IGNORE },
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_ASUSTEK,
-		USB_DEVICE_ID_ASUSTEK_T100CHI_KEYBOARD),
-	  HID_BATTERY_QUIRK_IGNORE },
 	{}
 };
 
@@ -578,7 +575,8 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	field->hidinput = hidinput;
 
-	if (field->flags & HID_MAIN_ITEM_CONSTANT)
+	if ((field->flags & HID_MAIN_ITEM_CONSTANT) &&
+			(usage->hid & HID_USAGE_PAGE) != HID_UP_ASUSVENDOR)
 		goto ignore;
 
 	/* Ignore if report count is out of bounds. */
@@ -1106,6 +1104,17 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		}
 		break;
 
+	case HID_UP_ASUSVENDOR:
+		switch (usage->hid & HID_USAGE) {
+		case 0x06C: map_key_clear(KEY_SLEEP);		break; /* Fn+F1: Sleep */
+		case 0x088: map_key_clear(KEY_WLAN);		break; /* Fn+F2: Wifi & BT */
+		case 0x010: map_key_clear(KEY_BRIGHTNESSDOWN);	break; /* Fn+F5: Brightness down */
+		case 0x020: map_key_clear(KEY_BRIGHTNESSUP);	break; /* Fn+F6: Brightness up */
+		case 0x06B: map_key_clear(KEY_F24);		break; /* Fn+F9: Touchpad */
+		default: goto ignore;
+		}
+		break;
+
 	default:
 	unknown:
 		if (field->report_size == 1) {
@@ -1125,15 +1134,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	}
 
 mapped:
-	if (device->driver->input_mapped &&
-	    device->driver->input_mapped(device, hidinput, field, usage,
-					 &bit, &max) < 0) {
-		/*
-		 * The driver indicated that no further generic handling
-		 * of the usage is desired.
-		 */
-		return;
-	}
+	if (device->driver->input_mapped && device->driver->input_mapped(device,
+				hidinput, field, usage, &bit, &max) < 0)
+		goto ignore;
 
 	set_bit(usage->type, input->evbit);
 
@@ -1214,11 +1217,9 @@ mapped:
 		set_bit(MSC_SCAN, input->mscbit);
 	}
 
+ignore:
 	return;
 
-ignore:
-	usage->type = 0;
-	usage->code = 0;
 }
 
 void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
