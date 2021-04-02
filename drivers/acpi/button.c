@@ -158,6 +158,10 @@ struct acpi_button {
 static struct acpi_device *lid_device;
 static long lid_init_state = -1;
 
+/* does userspace want to see KEY_POWER at resume? */
+static bool __read_mostly key_power_at_resume = true;
+module_param(key_power_at_resume, bool, 0644);
+
 static unsigned long lid_report_interval __read_mostly = 500;
 module_param(lid_report_interval, ulong, 0644);
 MODULE_PARM_DESC(lid_report_interval, "Interval (ms) between lid key events");
@@ -418,7 +422,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 			int keycode;
 
 			acpi_pm_wakeup_event(&device->dev);
-			if (button->suspended)
+			if (button->suspended && !key_power_at_resume)
 				break;
 
 			keycode = test_bit(KEY_SLEEP, input->keybit) ?
