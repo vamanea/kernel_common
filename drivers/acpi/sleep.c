@@ -496,7 +496,7 @@ static void acpi_pm_finish(void)
 						    NULL, -1);
 	if (pwr_btn_adev) {
 		pm_wakeup_event(&pwr_btn_adev->dev, 0);
-		pwr_btn_notify(pwr_btn_adev);
+		pwr_btn_notify(&pwr_btn_adev->dev);
 		acpi_dev_put(pwr_btn_adev);
 	}
 }
